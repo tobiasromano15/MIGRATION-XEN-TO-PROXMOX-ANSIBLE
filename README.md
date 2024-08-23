@@ -106,7 +106,7 @@ Once you have the UUID (generally for the /dev/xvda1 device), modify the entry i
 
 It should be changed to:
 
-UUID=cb82bd67-7462-4f62-b926-1b236a9bd4e6 / ext3 noatime,nodiratime,errors=remount-ro 0 1
+UUID=XXXXXXX-XXXXX (YOUR UUID) / ext3 noatime,nodiratime,errors=remount-ro 0 1
 
 7- The network device in Proxmox changes its name, from eth0 to ens18
 
@@ -114,7 +114,7 @@ CAUTION: In Ubuntu 14, it remains eth0
 
 Some virtual machines are configured with networking, and others with netplan. You need to edit /etc/network/interfaces or /etc/netplan/00_unicen.yaml.
 
-Change eth0 to ens18
+Change eth0 to ens18 (NOT IN UBUNTU)
 
 Virtual Machine Export
 1- Identify the logical volume of the virtual machine to be migrated
