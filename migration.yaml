@@ -1,0 +1,89 @@
+- name: Preparar las maquinas virtuales de ubuntu para migracion
+  hosts: "{{ host }}"
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Actualizar la lista de paquetes sin eliminar nada
+      apt:
+        update_cache: yes
+
+    - name: Ejecutar grub-install en /dev/xvda
+      shell: grub-install /dev/xvda
+
+    - name: Cargar módulos virtio y agregarlos a /etc/modules
+      shell: |
+        modprobe virtio_blk
+        modprobe virtio_net
+        echo "virtio_blk" | tee -a /etc/modules
+        echo "virtio_net" | tee -a /etc/modules
+
+    - name: Instalar Qemu-guest-agent
+      apt:
+        name: qemu-guest-agent
+        state: present
+
+    - name: Ejecutar blkid y obtener el primer UUID
+      ansible.builtin.shell: |
+        echo UUID=$(blkid | grep -oP 'UUID="\K[a-fA-F0-9\-]+' | head -n 1)
+      register: formatted_uuid
+
+    - name: Mostrar el UUID formateado
+      debug:
+        var: formatted_uuid.stdout
+
+
+    - name: Comentar la línea existente que monta /dev/xvda1
+      lineinfile:
+        path: /etc/fstab
+        regexp: '^/dev/xvda1'
+        line: '# /dev/xvda1 / ext3 noatime,nodiratime,errors=remount-ro 0 1'
+        backrefs: yes
+        state: present
+
+    - name: Agregar la nueva línea con el UUID
+      lineinfile:
+        path: /etc/fstab
+        line: "{{ formatted_uuid.stdout }} / ext3 noatime,nodiratime,errors=remount-ro 0 1"
+        insertafter: '^# /dev/xvda1'
+        state: present
+
+    - name: Verificar si la versión de Ubuntu es mayor a 14
+      assert:
+        that: "ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_version'] is version('14.04', '>')"
+        success_msg: "La versión de Ubuntu es mayor o igual a 14.04, continuando con la ejecución."
+        fail_msg: "La versión de Ubuntu es menor a 14.04, deteniendo la ejecución."
+      tags: always
+
+    - name: Verificar si el archivo /etc/netplan/00-unicen.yaml existe
+      stat:
+        path: /etc/netplan/00-unicen.yaml
+      register: netplan_file
+
+    - name: Buscar la palabra eth0 en /etc/netplan/00-unicen.yaml
+      command: grep -q 'eth0' /etc/netplan/00-unicen.yaml
+      register: grep_result
+      failed_when: grep_result.rc not in [0, 1]
+      when: netplan_file.stat.exists
+
+    - name: Reemplazar solo la palabra eth0 por ens18 en /etc/netplan/00-unicen.yaml
+      replace:
+        path: /etc/netplan/00-unicen.yaml
+        regexp: '\beth0\b'
+        replace: 'ens18'
+      when:
+        - netplan_file.stat.exists
+        - grep_result.rc == 0
+
+    - name: Reemplazar solo la palabra eth0 por ens18 en /etc/network/interfaces
+      replace:
+        path: /etc/network/interfaces
+        regexp: '\beth0\b'
+        replace: 'ens18'
+
+    - name: Verificar el contenido de /etc/network/interfaces
+      shell: cat /etc/network/interfaces
+      register: interfaces_content
+
+    - name: Mostrar el contenido actualizado de /etc/network/interfaces
+      debug:
+        var: interfaces_content.stdout
