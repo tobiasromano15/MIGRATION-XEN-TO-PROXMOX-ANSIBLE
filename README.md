@@ -142,7 +142,7 @@ qemu-img convert -p -f raw -O qcow2 /dev/xenvg/087078e0-7cf7-4e1a-ae0c-58d70a87b
 
 On a Proxmox node:
 
-scp soporte@nodoXX.unicen.edu.ar:/<tmp o data>/<virtual>.qcow2 .
+scp xxx.xxx:/<tmp o data>/<virtual>.qcow2 .
 
 3- Import the disk, associating it with the ID of the created virtual machine (e.g., 107):
 
